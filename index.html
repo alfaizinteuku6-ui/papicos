@@ -346,13 +346,22 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+          <a href="https://docs.google.com/spreadsheets/d/1wvcoUyRpaofmplDNmenOYoGWmSubWtV8wYD7G1WIbMI/edit" target="_blank" rel="noopener noreferrer" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition inline-flex items-center gap-1.5">
+            Buka Google Spreadsheet ↗
+          </a>
+          <button id="btn-admin-pull-sheet" type="button" class="px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-semibold transition">
+            Tarik dari Spreadsheet
+          </button>
+          <button id="btn-admin-push-sheet" type="button" class="px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-semibold transition">
+            Kirim Semua ke Spreadsheet
+          </button>
           <button id="btn-admin-export-all" type="button" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition">
             Download Database Excel (.xlsx)
           </button>
-          <button id="btn-admin-gsheet-modal" type="button" class="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition">
+          <button id="btn-admin-gsheet-modal" type="button" class="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition">
             Integrasi Google Sheets
           </button>
-          <label class="px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-semibold cursor-pointer transition">
+          <label class="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-semibold cursor-pointer transition">
             Impor JSON Backup
             <input id="input-import-json" type="file" accept=".json" class="hidden" />
           </label>
@@ -579,6 +588,10 @@
     // =========================================================================
     // 4. STORAGE ENGINE (LOCALSTORAGE + IN-MEMORY FALLBACK)
     // =========================================================================
+    const SPREADSHEET_ID = '1wvcoUyRpaofmplDNmenOYoGWmSubWtV8wYD7G1WIbMI';
+    const SPREADSHEET_EDIT_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit`;
+    const SPREADSHEET_GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=Hasil`;
+
     const STORAGE_KEYS = {
       SUBMISSIONS: 'papi_kostick_submissions_v1',
       DRAFTS: 'papi_kostick_drafts_v1',
@@ -1017,27 +1030,9 @@
       delete drafts[record.participant.id];
       safeWrite(STORAGE_KEYS.DRAFTS, drafts);
 
-      // Optional Google Sheets Webhook sync (matches Database PAPI Kostick columns)
-      const gsheetUrl = safeRead(STORAGE_KEYS.GSHEET_URL, '');
-      if (gsheetUrl) {
-        try {
-          const detailRows = QUESTIONS.map(item => {
-            const ch = record.answers[item.no];
-            const target = getTargetDimension(item.no, ch);
-            return { no: item.no, a: item.a, b: item.b, choice: ch, dimCode: target.code, category: target.category };
-          });
-          await fetch(gsheetUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...record, detailRows })
-          });
-          showToast('Hasil tersimpan di sistem & dikirim ke Google Sheets.', 'success');
-        } catch (err) {
-          showToast('Hasil tersimpan di sistem lokal (gagal sinkron ke Google Sheets).', 'warning');
-        }
-      } else {
-        showToast('Seluruh jawaban & hasil berhasil disimpan!', 'success');
+      const syncedOk = await pushRecordToSpreadsheet(record, true);
+      if (!syncedOk) {
+        showToast('Seluruh jawaban & hasil berhasil disimpan di sistem!', 'success');
       }
 
       renderResultView(record, false);
@@ -1478,50 +1473,265 @@
       e.target.value = '';
     });
 
-    document.getElementById('btn-admin-gsheet-modal').addEventListener('click', () => {
+    const APPS_SCRIPT_CODE = `const SHEET_ID = '1wvcoUyRpaofmplDNmenOYoGWmSubWtV8wYD7G1WIbMI';
+
+function doGet(e) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName('Hasil');
+  var values = sh.getDataRange().getValues();
+  var records = [];
+  for (var i = 1; i < values.length; i++) {
+    var r = values[i];
+    if (!r[1]) continue;
+    var answers = {};
+    try { answers = JSON.parse(r[28] || '{}'); } catch (err) {}
+    records.push({
+      completedAt: r[0],
+      submissionId: String(r[1]),
+      participant: {
+        id: String(r[3]).toLowerCase() + '__' + String(r[5]),
+        nama: String(r[2]),
+        email: String(r[3]),
+        pendidikan: String(r[4]),
+        tanggal: String(r[5])
+      },
+      totalRoles: Number(r[6]) || 45,
+      totalNeeds: Number(r[7]) || 45,
+      scores: {
+        G:Number(r[8]), L:Number(r[9]), I:Number(r[10]), T:Number(r[11]), V:Number(r[12]),
+        S:Number(r[13]), R:Number(r[14]), D:Number(r[15]), C:Number(r[16]), E:Number(r[17]),
+        N:Number(r[18]), A:Number(r[19]), P:Number(r[20]), X:Number(r[21]), B:Number(r[22]),
+        O:Number(r[23]), Z:Number(r[24]), K:Number(r[25]), F:Number(r[26]), W:Number(r[27])
+      },
+      answers: answers
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, records: records }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var shHasil = ss.getSheetByName('Hasil');
+  var shDetail = ss.getSheetByName('Detail_Jawaban_1_90');
+  var payload = JSON.parse(e.postData.contents);
+  var list = Array.isArray(payload.records) ? payload.records : [payload];
+  var existingIds = {};
+  var existingVals = shHasil.getDataRange().getValues();
+  for (var i = 1; i < existingVals.length; i++) {
+    existingIds[String(existingVals[i][1])] = true;
+  }
+  list.forEach(function(d) {
+    if (!d || !d.submissionId || existingIds[String(d.submissionId)]) return;
+    var s = d.scores;
+    shHasil.appendRow([
+      d.completedAt, d.submissionId, d.participant.nama, d.participant.email,
+      d.participant.pendidikan, d.participant.tanggal, d.totalRoles, d.totalNeeds,
+      s.G, s.L, s.I, s.T, s.V, s.S, s.R, s.D, s.C, s.E,
+      s.N, s.A, s.P, s.X, s.B, s.O, s.Z, s.K, s.F, s.W,
+      JSON.stringify(d.answers)
+    ]);
+    if (d.detailRows && shDetail && d.detailRows.length) {
+      var rows = d.detailRows.map(function(r) {
+        return [d.completedAt, d.submissionId, d.participant.nama, d.participant.tanggal, r.no, r.a, r.b, r.choice, r.dimCode, r.category];
+      });
+      shDetail.getRange(shDetail.getLastRow() + 1, 1, rows.length, 10).setValues(rows);
+    }
+  });
+  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+    function buildRecordWithDetails(record) {
+      const detailRows = QUESTIONS.map(item => {
+        const ch = record.answers[item.no];
+        const target = getTargetDimension(item.no, ch);
+        return { no: item.no, a: item.a, b: item.b, choice: ch, dimCode: target.code, category: target.category };
+      });
+      return { ...record, detailRows };
+    }
+
+    async function pushRecordToSpreadsheet(record, notifyUser) {
+      const gsheetUrl = safeRead(STORAGE_KEYS.GSHEET_URL, '');
+      if (!gsheetUrl) return false;
+      try {
+        await fetch(gsheetUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(buildRecordWithDetails(record))
+        });
+        if (notifyUser) {
+          showToast('Hasil otomatis disimpan ke sistem & dikirim ke Google Spreadsheet!', 'success');
+        }
+        return true;
+      } catch (err) {
+        if (notifyUser) {
+          showToast('Tersimpan di lokal (gagal menghubungi endpoint Google Sheets).', 'warning');
+        }
+        return false;
+      }
+    }
+
+    async function pushAllToSpreadsheet() {
+      const gsheetUrl = safeRead(STORAGE_KEYS.GSHEET_URL, '');
+      if (!gsheetUrl) {
+        showToast('Masukkan URL Web App Apps Script terlebih dahulu di Pengaturan Endpoint.', 'warning');
+        openGsheetModal();
+        return;
+      }
+      const submissions = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+      if (!submissions.length) {
+        showToast('Belum ada data lokal untuk dikirim ke Spreadsheet.', 'warning');
+        return;
+      }
+      try {
+        const records = submissions.map(buildRecordWithDetails);
+        await fetch(gsheetUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ records })
+        });
+        showToast(`Mengirim ${records.length} data peserta ke Google Spreadsheet...`, 'success');
+      } catch (err) {
+        showToast('Gagal mengirim data ke Google Spreadsheet.', 'error');
+      }
+    }
+
+    async function pullFromSpreadsheet() {
+      const gsheetUrl = safeRead(STORAGE_KEYS.GSHEET_URL, '');
+      let fetchedRecords = null;
+
+      // 1. Try Apps Script doGet endpoint first if configured
+      if (gsheetUrl) {
+        try {
+          const res = await fetch(gsheetUrl);
+          const data = await res.json();
+          if (data && Array.isArray(data.records)) {
+            fetchedRecords = data.records;
+          }
+        } catch (err) {
+          // Fallback to gviz below
+        }
+      }
+
+      // 2. Fallback: Try direct Google Visualization JSON feed (works when Sheet is shared "Anyone with link can view")
+      if (!fetchedRecords) {
+        try {
+          const res = await fetch(SPREADSHEET_GVIZ_URL);
+          const txt = await res.text();
+          const match = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]+)\);?/);
+          if (match && match[1]) {
+            const json = JSON.parse(match[1]);
+            const rows = (json.table && json.table.rows) || [];
+            fetchedRecords = [];
+            rows.forEach(rowObj => {
+              const c = rowObj.c || [];
+              const val = idx => (c[idx] && c[idx].v !== null && c[idx].v !== undefined ? c[idx].v : '');
+              const subId = String(val(1));
+              if (!subId || subId === 'Submission_ID') return;
+              let answers = {};
+              try { answers = JSON.parse(String(val(28) || '{}')); } catch (e) {}
+              fetchedRecords.push({
+                completedAt: String(val(0)) || new Date().toISOString(),
+                submissionId: subId,
+                participant: {
+                  id: `${String(val(3)).toLowerCase()}__${String(val(5))}`,
+                  nama: String(val(2)),
+                  email: String(val(3)),
+                  pendidikan: String(val(4)),
+                  tanggal: String(val(5))
+                },
+                totalRoles: Number(val(6)) || 45,
+                totalNeeds: Number(val(7)) || 45,
+                scores: {
+                  G:Number(val(8)), L:Number(val(9)), I:Number(val(10)), T:Number(val(11)), V:Number(val(12)),
+                  S:Number(val(13)), R:Number(val(14)), D:Number(val(15)), C:Number(val(16)), E:Number(val(17)),
+                  N:Number(val(18)), A:Number(val(19)), P:Number(val(20)), X:Number(val(21)), B:Number(val(22)),
+                  O:Number(val(23)), Z:Number(val(24)), K:Number(val(25)), F:Number(val(26)), W:Number(val(27))
+                },
+                answers
+              });
+            });
+          }
+        } catch (err) {
+          // Handled below
+        }
+      }
+
+      if (!fetchedRecords) {
+        showToast('Gagal menarik data. Pastikan URL Apps Script aktif atau akses Spreadsheet diatur ke "Siapa saja yang memiliki link".', 'warning');
+        return;
+      }
+
+      const current = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+      const map = new Map();
+      current.forEach(item => map.set(item.submissionId, item));
+      fetchedRecords.forEach(item => map.set(item.submissionId, item));
+      safeWrite(STORAGE_KEYS.SUBMISSIONS, Array.from(map.values()));
+      renderAdminDashboard();
+      showToast(`Berhasil menyinkronkan ${fetchedRecords.length} data dari Google Spreadsheet!`, 'success');
+    }
+
+    function openGsheetModal() {
       const currentUrl = safeRead(STORAGE_KEYS.GSHEET_URL, '');
-      const sheetLink = 'https://docs.google.com/spreadsheets/d/1wvcoUyRpaofmplDNmenOYoGWmSubWtV8wYD7G1WIbMI/edit';
       openModal({
-        title: 'Integrasi Database Google Sheets',
+        title: 'Integrasi Penuh 2 Arah Google Spreadsheet',
         htmlBody: `
           <div class="space-y-3 text-xs">
-            <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
-              Spreadsheet sudah disiapkan: <a href="${sheetLink}" target="_blank" rel="noopener noreferrer" class="font-bold underline text-emerald-700">Buka Database PAPI Kostick ↗</a>
+            <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-center justify-between gap-2">
+              <div>
+                <div class="font-bold">Spreadsheet ID Terhubung:</div>
+                <div class="font-mono text-[11px] text-emerald-800">${SPREADSHEET_ID}</div>
+              </div>
+              <a href="${SPREADSHEET_EDIT_URL}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shrink-0">Buka Sheet ↗</a>
             </div>
-            <p>Agar setiap jawaban peserta otomatis masuk ke tab <strong>Hasil</strong> dan <strong>Detail_Jawaban_1_90</strong>, buka spreadsheet di atas → <strong>Ekstensi &gt; Apps Script</strong> → tempel kode di bawah → <strong>Terapkan &gt; Deployment baru &gt; Aplikasi Web (Akses: Siapa saja)</strong>, lalu tempel URL-nya di sini:</p>
-            <input id="gsheet-url-input" type="url" value="${currentUrl}" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs" />
-            <div class="bg-slate-900 text-slate-100 p-3 rounded-lg overflow-x-auto font-mono text-[10px] leading-relaxed max-h-48 overflow-y-auto">
-function doPost(e) {<br/>
-&nbsp;&nbsp;var ss = SpreadsheetApp.getActiveSpreadsheet();<br/>
-&nbsp;&nbsp;var shHasil = ss.getSheetByName('Hasil');<br/>
-&nbsp;&nbsp;var shDetail = ss.getSheetByName('Detail_Jawaban_1_90');<br/>
-&nbsp;&nbsp;var d = JSON.parse(e.postData.contents);<br/>
-&nbsp;&nbsp;var s = d.scores;<br/>
-&nbsp;&nbsp;shHasil.appendRow([d.completedAt, d.submissionId, d.participant.nama, d.participant.email, d.participant.pendidikan, d.participant.tanggal, d.totalRoles, d.totalNeeds, s.G, s.L, s.I, s.T, s.V, s.S, s.R, s.D, s.C, s.E, s.N, s.A, s.P, s.X, s.B, s.O, s.Z, s.K, s.F, s.W, JSON.stringify(d.answers)]);<br/>
-&nbsp;&nbsp;if (d.detailRows && shDetail) {<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;var rows = d.detailRows.map(function(r){ return [d.completedAt, d.submissionId, d.participant.nama, d.participant.tanggal, r.no, r.a, r.b, r.choice, r.dimCode, r.category]; });<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;shDetail.getRange(shDetail.getLastRow()+1, 1, rows.length, 10).setValues(rows);<br/>
-&nbsp;&nbsp;}<br/>
-&nbsp;&nbsp;return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);<br/>
-}
+            <p class="leading-relaxed">Kode di bawah ini sudah diikat langsung ke ID Spreadsheet Anda (mendukung <strong>simpan otomatis ` + "`doPost`" + `</strong> ke tab <em>Hasil</em> &amp; <em>Detail_Jawaban_1_90</em> sekaligus <strong>tarik data ` + "`doGet`" + `</strong>). Buka Spreadsheet → <strong>Ekstensi &gt; Apps Script</strong> → klik tombol salin di bawah dan tempel → <strong>Terapkan &gt; Deployment baru &gt; Aplikasi Web (Akses: Siapa saja)</strong>:</p>
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-slate-700">Kode Google Apps Script (Siap Tempel):</span>
+              <button id="btn-copy-gas" type="button" class="px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 font-semibold hover:bg-indigo-100">Salin Kode Apps Script</button>
+            </div>
+            <pre id="gas-code-pre" class="bg-slate-900 text-slate-100 p-3 rounded-lg overflow-x-auto font-mono text-[10px] leading-relaxed max-h-40 overflow-y-auto"></pre>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">URL Web App Google Apps Script (` + "`.../exec`" + `):</label>
+              <input id="gsheet-url-input" type="url" value="${currentUrl}" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs" />
             </div>
           </div>
         `,
         buttons: [
           { label: 'Tutup' },
           {
-            label: 'Simpan URL',
+            label: 'Simpan & Aktifkan Sinkronisasi',
             className: 'px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700',
             onClick: () => {
               const val = document.getElementById('gsheet-url-input').value.trim();
               safeWrite(STORAGE_KEYS.GSHEET_URL, val);
               renderAdminDashboard();
-              showToast(val ? 'URL Google Sheets disimpan.' : 'Integrasi Google Sheets dinonaktifkan.', 'success');
+              showToast(val ? 'Endpoint Google Sheets aktif!' : 'Endpoint Google Sheets dikosongkan.', 'success');
             }
           }
         ]
       });
-    });
+      const pre = document.getElementById('gas-code-pre');
+      if (pre) pre.textContent = APPS_SCRIPT_CODE;
+      const copyBtn = document.getElementById('btn-copy-gas');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          const ta = document.createElement('textarea');
+          ta.value = APPS_SCRIPT_CODE;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch (e) {}
+          ta.remove();
+          showToast('Kode Apps Script berhasil disalin!', 'success');
+        });
+      }
+    }
+
+    document.getElementById('btn-admin-gsheet-modal').addEventListener('click', openGsheetModal);
+    document.getElementById('btn-admin-pull-sheet').addEventListener('click', pullFromSpreadsheet);
+    document.getElementById('btn-admin-push-sheet').addEventListener('click', pushAllToSpreadsheet);
 
     // Init
     showView('view-auth');
