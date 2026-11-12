@@ -28,6 +28,21 @@
   <!-- Toast Container -->
   <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
 
+  <!-- Loading Overlay Spinner -->
+  <div id="loading-overlay" class="fixed inset-0 z-[999] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 border border-slate-200">
+      <svg class="animate-spin w-12 h-12 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      <div class="text-center">
+        <div class="font-bold text-slate-900 text-base" id="loading-title">Menyimpan Hasil...</div>
+        <div class="text-sm text-slate-500 mt-1" id="loading-subtitle">Mohon tunggu sebentar</div>
+      </div>
+    </div>
+  </div>
+
+
   <!-- Confirmation / Info Modal -->
   <div id="app-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
     <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 border border-slate-200">
@@ -156,9 +171,6 @@
               <input id="toggle-autonext" type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" />
               Auto-Lanjut (350ms)
             </label>
-            <button id="btn-demo-fill" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition">
-              Isi Acak (Demo)
-            </button>
           </div>
         </div>
 
@@ -684,6 +696,21 @@
       modal.classList.remove('flex');
     }
 
+    function showLoading(title = 'Menyimpan Hasil...', subtitle = 'Mohon tunggu sebentar') {
+      const overlay = document.getElementById('loading-overlay');
+      document.getElementById('loading-title').textContent = title;
+      document.getElementById('loading-subtitle').textContent = subtitle;
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+    }
+
+    function hideLoading() {
+      const overlay = document.getElementById('loading-overlay');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    }
+
+
     function showView(viewId) {
       ['view-auth', 'view-test', 'view-result', 'view-admin'].forEach(id => {
         document.getElementById(id).classList.toggle('hidden', id !== viewId);
@@ -985,19 +1012,6 @@
       }
     });
 
-    document.getElementById('btn-demo-fill').addEventListener('click', () => {
-      const filled = {};
-      for (let i = 1; i <= 90; i++) {
-        filled[i] = Math.random() < 0.5 ? 'A' : 'B';
-      }
-      appState.answers = filled;
-      saveDraftSync();
-      renderQuestion();
-      renderQuestionGrid();
-      updateProgress();
-      showToast('90 soal diisi acak untuk uji coba.', 'info');
-    });
-
     document.getElementById('btn-submit-test').addEventListener('click', async () => {
       const firstEmpty = findFirstUnanswered();
       if (firstEmpty) {
@@ -1007,6 +1021,13 @@
         showToast(`Masih ada soal yang belum dijawab (No. ${firstEmpty}).`, 'warning');
         return;
       }
+
+      // Tampilkan spinner loading
+      showLoading('Menyimpan Hasil...', 'Mohon tunggu sebentar');
+      document.getElementById('btn-submit-test').disabled = true;
+
+      // Beri jeda kecil agar spinner tampil dulu
+      await new Promise(resolve => setTimeout(resolve, 400));
 
       const { scores, totalRoles, totalNeeds } = computeScores(appState.answers);
       const record = {
@@ -1030,13 +1051,17 @@
       delete drafts[record.participant.id];
       safeWrite(STORAGE_KEYS.DRAFTS, drafts);
 
-      const syncedOk = await pushRecordToSpreadsheet(record, true);
-      if (!syncedOk) {
-        showToast('Seluruh jawaban & hasil berhasil disimpan di sistem!', 'success');
-      }
+      // Sinkron ke Google Sheets jika ada URL
+      await pushRecordToSpreadsheet(record, true);
+
+      // Sembunyikan spinner & tampilkan notifikasi
+      hideLoading();
+      document.getElementById('btn-submit-test').disabled = false;
+      showToast('Hasil tes berhasil disimpan!', 'success');
 
       renderResultView(record, false);
     });
+
 
     // =========================================================================
     // 9. RESULT VIEW & RADAR CHART
