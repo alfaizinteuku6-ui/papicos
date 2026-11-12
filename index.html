@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAPI Kostick — Sistem Tes Psikologi & Database Hasil</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #ffffff; }
+      .print-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Confirmation / Info Modal -->
+  <div id="app-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 border border-slate-200">
+      <h3 id="modal-title" class="text-lg font-bold text-slate-900 mb-2">Konfirmasi</h3>
+      <div id="modal-body" class="text-sm text-slate-600 mb-5 leading-relaxed"></div>
+      <div id="modal-actions" class="flex justify-end gap-2"></div>
+    </div>
+  </div>
+
+  <!-- Top Navigation -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 no-print">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+          PK
+        </div>
+        <div class="min-w-0">
+          <div class="font-bold text-slate-900 text-sm sm:text-base truncate">PAPI Kostick Assessment</div>
+          <div class="text-xs text-slate-500 hidden sm:block">Inventori Kepribadian Kerja • 90 Soal &amp; 20 Dimensi</div>
+        </div>
+      </div>
+
+      <div id="nav-user-area" class="flex items-center gap-2 shrink-0">
+        <span id="nav-badge" class="hidden text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-700"></span>
+        <button id="btn-logout" type="button" class="hidden text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition">
+          Keluar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+    <!-- VIEW 1: AUTH / LANDING -->
+    <section id="view-auth" class="max-w-xl mx-auto">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-6 text-white">
+          <h1 class="text-xl sm:text-2xl font-bold">Portal Tes Psikologi PAPI Kostick</h1>
+          <p class="text-indigo-100 text-sm mt-1">Masuk sebagai Peserta untuk mengerjakan tes, atau sebagai Admin untuk mengelola database hasil.</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="grid grid-cols-2 border-b border-slate-200 bg-slate-50">
+          <button id="tab-peserta" type="button" class="py-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 bg-white transition">
+            Akun Peserta
+          </button>
+          <button id="tab-admin" type="button" class="py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition">
+            Akun Admin
+          </button>
+        </div>
+
+        <!-- Peserta Form -->
+        <form id="form-peserta" class="p-6 space-y-4">
+          <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 text-xs text-indigo-900 leading-relaxed">
+            <strong>Petunjuk Singkat:</strong> Terdapat 90 pasang pernyataan. Pilihlah <strong>satu pernyataan (A atau B)</strong> yang paling menggambarkan diri Anda. Progres tersimpan otomatis di sistem.
+          </div>
+
+          <div>
+            <label for="p-nama" class="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap <span class="text-rose-500">*</span></label>
+            <input id="p-nama" type="text" required placeholder="Contoh: Budi Santoso" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="p-email" class="block text-sm font-medium text-slate-700 mb-1">Email / ID Peserta <span class="text-rose-500">*</span></label>
+              <input id="p-email" type="text" required placeholder="email@contoh.com" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label for="p-pendidikan" class="block text-sm font-medium text-slate-700 mb-1">Pendidikan Terakhir <span class="text-rose-500">*</span></label>
+              <select id="p-pendidikan" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Pilih Pendidikan...</option>
+                <option value="SMA / SMK">SMA / SMK</option>
+                <option value="D3">D3</option>
+                <option value="S1 / D4">S1 / D4</option>
+                <option value="S2">S2</option>
+                <option value="S3">S3</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="p-tanggal" class="block text-sm font-medium text-slate-700 mb-1">Tanggal Tes <span class="text-rose-500">*</span></label>
+            <input id="p-tanggal" type="date" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+
+          <button type="submit" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm transition">
+            Mulai / Lanjutkan Tes PAPI Kostick
+          </button>
+        </form>
+
+        <!-- Admin Form -->
+        <form id="form-admin" class="p-6 space-y-4 hidden">
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-600">
+            Masuk sebagai Administrator untuk melihat seluruh hasil tes peserta, mengunduh database Excel lengkap, dan mengatur integrasi Google Sheets.
+          </div>
+
+          <div>
+            <label for="a-email" class="block text-sm font-medium text-slate-700 mb-1">Email Admin</label>
+            <input id="a-email" type="email" required placeholder="Masukkan email admin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+
+          <div>
+            <label for="a-password" class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <input id="a-password" type="password" required placeholder="Masukkan password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+
+          <button type="submit" class="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-sm transition">
+            Masuk Dashboard Admin
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- VIEW 2: TEST RUNNER (90 QUESTIONS) -->
+    <section id="view-test" class="hidden space-y-5">
+      <!-- Top Bar Progress -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">Peserta Aktif</div>
+            <div id="test-participant-label" class="font-bold text-slate-900 text-sm sm:text-base"></div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg cursor-pointer select-none">
+              <input id="toggle-autonext" type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" />
+              Auto-Lanjut (350ms)
+            </label>
+            <button id="btn-demo-fill" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition">
+              Isi Acak (Demo)
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-600 mb-1.5">
+          <span>Progres Pengisian</span>
+          <span id="test-progress-text">0 / 90 terjawab (0%)</span>
+        </div>
+        <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div id="test-progress-bar" class="h-full bg-indigo-600 transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Main Question + Navigator Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        <!-- Question Card -->
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 sm:p-7 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <span id="q-number-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">
+              Soal 1 dari 90
+            </span>
+            <span id="q-saved-indicator" class="text-xs font-semibold text-emerald-600 hidden items-center gap-1">
+              ✓ Tersimpan di sistem
+            </span>
+          </div>
+
+          <p class="text-xs sm:text-sm text-slate-500 mb-4">Pilih salah satu pernyataan yang paling mendekati gambaran diri Anda:</p>
+
+          <div class="space-y-3" id="choices-container">
+            <button id="btn-choice-a" type="button" class="w-full text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition flex items-start gap-3.5 group">
+              <span class="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-indigo-100 text-slate-700 font-bold text-sm flex items-center justify-center shrink-0">A</span>
+              <span id="text-choice-a" class="text-sm sm:text-base font-medium text-slate-800 leading-relaxed flex-1"></span>
+              <span id="check-choice-a" class="hidden text-indigo-600 font-bold text-lg shrink-0">✓</span>
+            </button>
+
+            <button id="btn-choice-b" type="button" class="w-full text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition flex items-start gap-3.5 group">
+              <span class="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-indigo-100 text-slate-700 font-bold text-sm flex items-center justify-center shrink-0">B</span>
+              <span id="text-choice-b" class="text-sm sm:text-base font-medium text-slate-800 leading-relaxed flex-1"></span>
+              <span id="check-choice-b" class="hidden text-indigo-600 font-bold text-lg shrink-0">✓</span>
+            </button>
+          </div>
+
+          <!-- Navigation Buttons -->
+          <div class="mt-6 pt-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <button id="btn-prev-q" type="button" class="px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition">
+                ← Sebelumnya
+              </button>
+              <button id="btn-next-q" type="button" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold disabled:opacity-40 transition">
+                Berikutnya →
+              </button>
+            </div>
+
+            <button id="btn-submit-test" type="button" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition">
+              Selesai &amp; Simpan Hasil
+            </button>
+          </div>
+        </div>
+
+        <!-- Number Navigator -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-bold text-slate-900">Navigasi Nomor (1–90)</h2>
+            <button id="btn-jump-unanswered" type="button" class="text-xs font-semibold text-indigo-600 hover:underline">
+              Ke Kosong
+            </button>
+          </div>
+          <div id="question-grid" class="grid grid-cols-9 sm:grid-cols-10 lg:grid-cols-6 gap-1.5"></div>
+          <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> Terjawab</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-indigo-600 inline-block"></span> Aktif</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-200 inline-block"></span> Belum</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: RESULT VIEW (PARTICIPANT OR ADMIN INSPECT) -->
+    <section id="view-result" class="hidden space-y-6">
+      <!-- Header & Action Buttons -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Tes Selesai</span>
+            <span id="res-validation-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">Roles: 45 | Needs: 45</span>
+          </div>
+          <h1 id="res-name" class="text-xl sm:text-2xl font-bold text-slate-900"></h1>
+          <p id="res-meta" class="text-xs sm:text-sm text-slate-500 mt-0.5"></p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 no-print">
+          <button id="btn-back-admin" type="button" class="hidden px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+            ← Kembali ke Admin
+          </button>
+          <button id="btn-export-excel-single" type="button" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition">
+            Download Excel (.xlsx)
+          </button>
+          <button id="btn-print-result" type="button" class="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition">
+            Cetak / PDF
+          </button>
+          <button id="btn-retake-test" type="button" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition">
+            Tes Baru
+          </button>
+        </div>
+      </div>
+
+      <!-- Chart + Dominant Summary -->
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <h2 class="text-base font-bold text-slate-900 mb-1">Grafik Psikogram 20 Dimensi PAPI Kostick</h2>
+          <p class="text-xs text-slate-500 mb-4">Skala 0–9 untuk 10 Peran (Roles) dan 10 Kebutuhan (Needs)</p>
+          <div class="relative h-80 w-full">
+            <canvas id="papi-radar-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 mb-3">Ringkasan Profil Kepribadian Kerja</h2>
+            <div id="res-highlights" class="space-y-2.5 text-sm"></div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
+            Interpretasi: <strong>Rendah (0–3)</strong>, <strong>Sedang (4–5)</strong>, <strong>Tinggi (6–9)</strong>.
+          </div>
+        </div>
+      </div>
+
+      <!-- 20 Dimensions Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-base font-bold text-slate-900">Skor &amp; Interpretasi Lengkap 20 Dimensi</h2>
+          <span class="text-xs text-slate-500">Dikelompokkan dalam 7 Aspek Kepribadian</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-600 border-b border-slate-200">
+              <tr>
+                <th class="px-4 py-3 font-semibold">Aspek</th>
+                <th class="px-4 py-3 font-semibold">Kode</th>
+                <th class="px-4 py-3 font-semibold">Dimensi</th>
+                <th class="px-4 py-3 font-semibold">Kategori</th>
+                <th class="px-4 py-3 font-semibold text-center">Skor</th>
+                <th class="px-4 py-3 font-semibold">Level</th>
+                <th class="px-4 py-3 font-semibold">Interpretasi</th>
+              </tr>
+            </thead>
+            <tbody id="res-dimensions-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detailed 90 Answers Log -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden print-break">
+        <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Log Detail Pengisian Peserta (Soal 1–90)</h2>
+            <p class="text-xs text-slate-500">Rekam jejak pilihan A/B dan dimensi yang mendapat poin (+1)</p>
+          </div>
+          <input id="res-search-log" type="text" placeholder="Cari kata kunci soal / kode..." class="no-print px-3 py-1.5 rounded-lg border border-slate-300 text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="overflow-x-auto max-h-[480px] overflow-y-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-600 border-b border-slate-200 sticky top-0">
+              <tr>
+                <th class="px-3 py-2.5 font-semibold w-14 text-center">No</th>
+                <th class="px-3 py-2.5 font-semibold">Pernyataan A</th>
+                <th class="px-3 py-2.5 font-semibold">Pernyataan B</th>
+                <th class="px-3 py-2.5 font-semibold text-center">Pilihan</th>
+                <th class="px-3 py-2.5 font-semibold text-center">Dimensi (+1)</th>
+              </tr>
+            </thead>
+            <tbody id="res-log-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: ADMIN DASHBOARD -->
+    <section id="view-admin" class="hidden space-y-6">
+      <!-- Admin Header -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-900 text-white">Administrator</span>
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-900 mt-1">Dashboard Database PAPI Kostick</h1>
+          <p class="text-xs sm:text-sm text-slate-500">Seluruh jawaban peserta tersimpan di sistem dan dapat diekspor ke spreadsheet Excel / Google Sheets.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btn-admin-export-all" type="button" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition">
+            Download Database Excel (.xlsx)
+          </button>
+          <button id="btn-admin-gsheet-modal" type="button" class="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition">
+            Integrasi Google Sheets
+          </button>
+          <label class="px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-semibold cursor-pointer transition">
+            Impor JSON Backup
+            <input id="input-import-json" type="file" accept=".json" class="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Admin KPIs -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <div class="text-xs font-medium text-slate-500">Total Tes Selesai</div>
+          <div id="kpi-total-submissions" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <div class="text-xs font-medium text-slate-500">Tes Sedang Berjalan (Draft)</div>
+          <div id="kpi-total-drafts" class="text-2xl font-bold text-indigo-600 mt-1">0</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <div class="text-xs font-medium text-slate-500">Status Sinkronisasi Google Sheets</div>
+          <div id="kpi-gsheet-status" class="text-sm font-bold text-slate-700 mt-2">Penyimpanan Lokal Aktif</div>
+        </div>
+      </div>
+
+      <!-- Submissions Spreadsheet Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <h2 class="text-base font-bold text-slate-900">Data Hasil Pengisian Peserta</h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="admin-search" type="text" placeholder="Cari nama, email, pendidikan..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs sm:text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button id="btn-admin-export-json" type="button" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+              Backup JSON
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-600 border-b border-slate-200">
+              <tr>
+                <th class="px-4 py-3 font-semibold">No</th>
+                <th class="px-4 py-3 font-semibold">Nama Peserta</th>
+                <th class="px-4 py-3 font-semibold">Email / ID</th>
+                <th class="px-4 py-3 font-semibold">Pendidikan</th>
+                <th class="px-4 py-3 font-semibold">Tanggal Tes</th>
+                <th class="px-4 py-3 font-semibold">Top Dimensi</th>
+                <th class="px-4 py-3 font-semibold text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="admin-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // =========================================================================
+    // 1. DATA SOAL PAPI KOSTICK (90 PASANG PERNYATAAN LENGKAP)
+    // =========================================================================
+    const QUESTIONS = [
+      { no: 1, a: 'Saya seorang pekerja "keras"', b: 'Saya bukan seorang pemurung' },
+      { no: 2, a: 'Saya suka bekerja lebih baik dari orang lain', b: 'Saya suka mengerjakan apa yang sedang saya kerjakan, sampai selesai' },
+      { no: 3, a: 'Saya suka menunjukkan caranya melaksanakan sesuatu hal', b: 'Saya ingin bekerja sebaik mungkin' },
+      { no: 4, a: 'Saya suka berkelakar', b: 'Saya senang mengatakan kepada orang lain, apa yang harus dilakukannya' },
+      { no: 5, a: 'Saya suka menggabungkan diri dengan kelompok-kelompok', b: 'Saya suka diperhatikan oleh kelompok-kelompok' },
+      { no: 6, a: 'Saya senang bersahabat intim dengan seseorang', b: 'Saya senang bersahabat dengan sekelompok orang' },
+      { no: 7, a: 'Saya cepat berubah bila hal itu diperlukan', b: 'Saya berusaha untuk intim dengan teman-teman' },
+      { no: 8, a: 'Saya suka "membalas dendam" bila saya benar-benar disakiti', b: 'Saya suka melakukan hal-hal yang baru dan berbeda' },
+      { no: 9, a: 'Saya ingin atasan saya menyukai saya', b: 'Saya suka mengatakan kepada orang lain, bila mereka salah' },
+      { no: 10, a: 'Saya suka mengikuti perintah-perintah yang diberikan kepada saya', b: 'Saya suka menyenangkan hati orang yang memimpin saya' },
+      { no: 11, a: 'Saya mencoba sekuat tenaga', b: 'Saya seorang yang tertib. Saya meletakkan segala sesuatu pada tempatnya' },
+      { no: 12, a: 'Saya membuat orang lain melakukan apa yang saya inginkan', b: 'Saya bukan orang yang cepat gusar' },
+      { no: 13, a: 'Saya suka mengatakan kepada kelompok, apa yang harus dilakukan', b: 'Saya menekuni satu pekerjaan sampai selesai' },
+      { no: 14, a: 'Saya ingin tampak bersemangat dan menarik', b: 'Saya ingin menjadi sangat sukses' },
+      { no: 15, a: 'Saya suka menyelaraskan diri dengan kelompok', b: 'Saya suka membantu orang lain menentukan pendapatnya' },
+      { no: 16, a: 'Saya cemas kalau orang lain tidak menyukai saya', b: 'Saya senang kalau orang-orang memperhatikan saya' },
+      { no: 17, a: 'Saya suka mencoba sesuatu yang baru', b: 'Saya lebih suka bekerja bersama orang-orang daripada bekerja sendiri' },
+      { no: 18, a: 'Kadang-kadang saya menyalahkan orang lain bila terjadi sesuatu kesalahan', b: 'Saya cemas bila seseorang tidak menyukai saya' },
+      { no: 19, a: 'Saya suka menyenangkan hati orang yang memimpin saya', b: 'Saya suka mencoba pekerjaan-pekerjaan yang baru dan berbeda' },
+      { no: 20, a: 'Saya menyukai petunjuk yang terinci untuk melakukan sesuatu pekerjaan', b: 'Saya suka mengatakan kepada orang lain bila mereka mengganggu saya' },
+      { no: 21, a: 'Saya selalu mencoba sekuat tenaga', b: 'Saya senang bekerja dengan sangat cermat dan hati-hati' },
+      { no: 22, a: 'Saya adalah seorang pemimpin yang baik', b: 'Saya mengorganisir tugas-tugas secara baik' },
+      { no: 23, a: 'Saya mudah menjadi gusar', b: 'Saya seorang yang lambat dalam membuat keputusan' },
+      { no: 24, a: 'Saya senang mengerjakan beberapa pekerjaan pada waktu yang bersamaan', b: 'Bila dalam kelompok, saya lebih suka diam' },
+      { no: 25, a: 'Saya senang bila diundang', b: 'Saya ingin melakukan sesuatu lebih baik dari orang lain' },
+      { no: 26, a: 'Saya suka berteman intim dengan teman-teman saya', b: 'Saya suka memberi nasihat kepada orang lain' },
+      { no: 27, a: 'Saya suka melakukan hal-hal yang baru dan berbeda', b: 'Saya suka menceritakan keberhasilan saya dalam mengerjakan tugas' },
+      { no: 28, a: 'Bila saya benar, saya suka mempertahankannya "mati-matian"', b: 'Saya suka bergabung ke dalam suatu kelompok' },
+      { no: 29, a: 'Saya tidak mau berbeda dengan orang lain', b: 'Saya berusaha untuk sangat intim dengan orang-orang' },
+      { no: 30, a: 'Saya suka diajari mengenai caranya mengerjakan sesuatu pekerjaan', b: 'Saya mudah merasa jemu (bosan)' },
+      { no: 31, a: 'Saya bekerja "keras"', b: 'Saya banyak berpikir dan berencana' },
+      { no: 32, a: 'Saya memimpin kelompok', b: 'Hal-hal yang kecil (detail) menarik hati saya' },
+      { no: 33, a: 'Saya cepat dan mudah mengambil keputusan', b: 'Saya meletakkan segala sesuatu secara rapi dan teratur' },
+      { no: 34, a: 'Tugas-tugas saya kerjakan secara cepat', b: 'Saya jarang marah atau sedih' },
+      { no: 35, a: 'Saya ingin menjadi bagian dari kelompok', b: 'Pada suatu waktu tertentu, saya hanya ingin mengerjakan satu tugas saja' },
+      { no: 36, a: 'Saya berusaha untuk intim dengan teman-teman saya', b: 'Saya berusaha keras untuk menjadi yang terbaik' },
+      { no: 37, a: 'Saya menyukai mode baju baru dan tipe-tipe mobil baru', b: 'Saya ingin menjadi penanggung jawab bagi orang-orang lain' },
+      { no: 38, a: 'Saya suka berdebat', b: 'Saya ingin diperhatikan' },
+      { no: 39, a: 'Saya suka menyenangkan hati orang yang memimpin saya', b: 'Saya tertarik menjadi anggota dari suatu kelompok' },
+      { no: 40, a: 'Saya senang mengikuti aturan secara tertib', b: 'Saya suka orang-orang mengenal saya benar-benar' },
+      { no: 41, a: 'Saya mencoba sekuat tenaga', b: 'Saya sangat menyenangkan' },
+      { no: 42, a: 'Orang lain beranggapan bahwa saya adalah seorang pemimpin yang baik', b: 'Saya berpikir jauh ke depan dan terinci' },
+      { no: 43, a: 'Seringkali saya memanfaatkan peluang', b: 'Saya senang memperhatikan hal-hal sampai sekecil-kecilnya' },
+      { no: 44, a: 'Orang lain menganggap saya bekerja cepat', b: 'Orang lain menganggap saya dapat melakukan penataan yang rapi dan teratur' },
+      { no: 45, a: 'Saya menyukai permainan-permainan dan olahraga', b: 'Saya sangat menyenangkan' },
+      { no: 46, a: 'Saya senang bila orang-orang dapat intim dan bersahabat', b: 'Saya selalu berusaha menyelesaikan apa yang telah saya mulai' },
+      { no: 47, a: 'Saya suka bereksperimen dan mencoba sesuatu yang baru', b: 'Saya suka mengerjakan pekerjaan-pekerjaan yang sulit dengan baik' },
+      { no: 48, a: 'Saya senang diperlakukan secara adil', b: 'Saya senang mengajari orang lain bagaimana caranya mengerjakan sesuatu' },
+      { no: 49, a: 'Saya suka mengerjakan apa yang diharapkan dari saya', b: 'Saya suka menarik perhatian' },
+      { no: 50, a: 'Saya suka petunjuk-petunjuk terinci dalam melaksanakan pekerjaan', b: 'Saya senang berada bersama dengan orang lain' },
+      { no: 51, a: 'Saya selalu berusaha mengerjakan tugas secara sempurna', b: 'Orang lain menganggap saya tidak mengenal lelah dalam kerja sehari-hari' },
+      { no: 52, a: 'Saya tergolong tipe pemimpin', b: 'Saya mudah berteman' },
+      { no: 53, a: 'Saya memanfaatkan peluang-peluang', b: 'Saya banyak berpikir' },
+      { no: 54, a: 'Saya bekerja dengan kecepatan yang mantap dan cepat', b: 'Saya senang mengerjakan hal-hal yang detail' },
+      { no: 55, a: 'Saya memiliki banyak energi untuk permainan-permainan dan olahraga', b: 'Saya menempatkan segala sesuatunya secara rapi dan teratur' },
+      { no: 56, a: 'Saya bergaul baik dengan orang', b: 'Saya "pandai mengendalikan diri"' },
+      { no: 57, a: 'Saya ingin berkenalan dengan orang-orang baru dan mengerjakan hal baru', b: 'Saya selalu ingin menyelesaikan pekerjaan yang sudah saya mulai' },
+      { no: 58, a: 'Biasanya saya bersikeras mengenai apa yang saya yakini', b: 'Biasanya saya suka bekerja "keras"' },
+      { no: 59, a: 'Saya menyukai saran-saran dari orang-orang yang saya kagumi', b: 'Saya senang mengatur orang lain' },
+      { no: 60, a: 'Saya biarkan orang-orang lain mempengaruhi saya', b: 'Saya suka menerima banyak perhatian' },
+      { no: 61, a: 'Biasanya saya bekerja sangat "keras"', b: 'Biasanya saya bekerja cepat' },
+      { no: 62, a: 'Bila saya berbicara, kelompok akan mendengarkan', b: 'Saya terampil mempergunakan alat-alat kerja' },
+      { no: 63, a: 'Saya lambat membina persahabatan', b: 'Saya lambat dalam mengambil keputusan' },
+      { no: 64, a: 'Biasanya saya makan secara cepat', b: 'Saya suka membaca' },
+      { no: 65, a: 'Saya menyukai pekerjaan yang memungkinkan saya "berkeliling"', b: 'Saya menyukai pekerjaan yang harus dilakukan secara teliti' },
+      { no: 66, a: 'Saya berteman sebanyak mungkin', b: 'Saya dapat menemukan hal-hal yang telah saya pindahkan' },
+      { no: 67, a: 'Perencanaan saya jauh ke masa depan', b: 'Saya selalu menyenangkan' },
+      { no: 68, a: 'Saya merasa bangga akan nama baik saya', b: 'Saya tetap menekuni satu permasalahan sampai ia terselesaikan' },
+      { no: 69, a: 'Saya suka menyenangkan hati orang-orang yang saya kagumi', b: 'Saya suka menjadi seorang yang berhasil' },
+      { no: 70, a: 'Saya senang bila orang-orang lain mengambil keputusan untuk kelompok', b: 'Saya suka mengambil keputusan untuk kelompok' },
+      { no: 71, a: 'Saya selalu berusaha sangat "keras"', b: 'Saya cepat dan mudah mengambil keputusan' },
+      { no: 72, a: 'Biasanya kelompok saya mengerjakan hal-hal yang saya inginkan', b: 'Biasanya saya tergesa-gesa' },
+      { no: 73, a: 'Saya seringkali merasa lelah', b: 'Saya lambat di dalam mengambil keputusan' },
+      { no: 74, a: 'Saya bekerja secara cepat', b: 'Saya mudah mendapat kawan' },
+      { no: 75, a: 'Biasanya saya bersemangat atau bergairah', b: 'Sebagian besar waktu saya untuk berpikir' },
+      { no: 76, a: 'Saya sangat hangat kepada orang-orang', b: 'Saya menyukai pekerjaan yang menuntut ketepatan' },
+      { no: 77, a: 'Saya banyak berpikir dan merencana', b: 'Saya meletakkan segala sesuatu pada tempatnya' },
+      { no: 78, a: 'Saya suka tugas yang perlu ditekuni sampai kepada hal sedetailnya', b: 'Saya tidak cepat marah' },
+      { no: 79, a: 'Saya senang mengikuti orang-orang yang saya kagumi', b: 'Saya selalu menyelesaikan pekerjaan yang saya mulai' },
+      { no: 80, a: 'Saya menyukai petunjuk-petunjuk yang jelas', b: 'Saya suka bekerja "keras"' },
+      { no: 81, a: 'Saya mengejar apa yang saya inginkan', b: 'Saya adalah seorang pemimpin yang baik' },
+      { no: 82, a: 'Saya membuat orang lain bekerja keras', b: 'Saya adalah seorang yang "gampangan" (tak banyak pertimbangan)' },
+      { no: 83, a: 'Saya membuat keputusan-keputusan secara cepat', b: 'Bicara saya cepat' },
+      { no: 84, a: 'Biasanya saya bekerja tergesa-gesa', b: 'Secara teratur saya berolahraga' },
+      { no: 85, a: 'Saya tidak suka bertemu dengan orang-orang', b: 'Saya cepat lelah' },
+      { no: 86, a: 'Saya mempunyai banyak sekali teman', b: 'Banyak waktu saya untuk berpikir' },
+      { no: 87, a: 'Saya suka bekerja dengan teori', b: 'Saya suka bekerja sedetail-detailnya' },
+      { no: 88, a: 'Saya suka bekerja sampai sedetail-detailnya', b: 'Saya suka mengorganisir pekerjaan saya' },
+      { no: 89, a: 'Saya meletakkan segala sesuatu pada tempatnya', b: 'Saya selalu menyenangkan' },
+      { no: 90, a: 'Saya senang diberi petunjuk mengenai apa yang harus saya lakukan', b: 'Saya harus menyelesaikan apa yang sudah saya mulai' }
+    ];
+
+    // =========================================================================
+    // 2. DEFINISI 20 DIMENSI & INTERPRETASI
+    // =========================================================================
+    const TOP_DIMS = ['G', 'L', 'I', 'T', 'V', 'S', 'R', 'D', 'C', 'E'];
+    const BOTTOM_DIMS = ['N', 'A', 'P', 'X', 'B', 'O', 'Z', 'K', 'F', 'W'];
+
+    const DIMENSIONS_META = [
+      { code: 'G', category: 'Role', aspect: 'Arah Kerja', name: 'Peran Pekerja Keras (Hard Intense Worker)', low: 'Bekerja santai, kurang menyukai kerja keras fisik atau beban kerja berlebihan.', mid: 'Cukup tekun dalam bekerja sesuai tuntutan tugas yang diberikan.', high: 'Pekerja keras, tekun, berdedikasi tinggi, dan selalu mengejar hasil maksimal.' },
+      { code: 'N', category: 'Need', aspect: 'Arah Kerja', name: 'Kebutuhan Menyelesaikan Tugas (Need to Finish Task)', low: 'Mudah beralih ke tugas lain sebelum pekerjaan sebelumnya benar-benar tuntas.', mid: 'Cukup bertanggung jawab menyelesaikan tugas sesuai prioritas.', high: 'Sangat tekun menuntaskan satu pekerjaan hingga tuntas sebelum berpindah.' },
+      { code: 'A', category: 'Need', aspect: 'Arah Kerja', name: 'Kebutuhan Berprestasi (Need to Achieve)', low: 'Puas dengan hasil standar, kurang terdorong untuk bersaing atau melampaui target.', mid: 'Memiliki dorongan berprestasi yang seimbang dan realistis.', high: 'Sangat ambisius, menetapkan target tinggi, dan menyukai tantangan prestasi.' },
+
+      { code: 'L', category: 'Role', aspect: 'Kepemimpinan', name: 'Peran Pemimpin (Leadership Role)', low: 'Lebih nyaman bekerja sebagai pelaksana atau dipimpin daripada memimpin kelompok.', mid: 'Mampu memimpin jika situasi menuntut, namun fleksibel dalam peran tim.', high: 'Percaya diri mengambil peran pemimpin, mengarahkan, dan memengaruhi orang lain.' },
+      { code: 'P', category: 'Need', aspect: 'Kepemimpinan', name: 'Kebutuhan Mengatur Orang Lain (Need to Control Others)', low: 'Enggan mengatur, mengawasi, atau bertanggung jawab atas pekerjaan orang lain.', mid: 'Dapat mengarahkan orang lain secara moderat sesuai kebutuhan kerja.', high: 'Suka memegang kendali, memberi instruksi, dan bertanggung jawab atas kerja tim.' },
+      { code: 'I', category: 'Role', aspect: 'Kepemimpinan', name: 'Kemudahan Mengambil Keputusan (Ease in Decision Making)', low: 'Lambat, ragu-ragu, atau sangat berhati-hati sebelum mengambil keputusan.', mid: 'Mengambil keputusan dengan pertimbangan cukup matang dan terukur.', high: 'Cepat, tegas, dan mudah mengambil keputusan tanpa banyak keraguan.' },
+
+      { code: 'T', category: 'Role', aspect: 'Aktivitas Kerja', name: 'Kecepatan Kerja (Pace)', low: 'Bekerja dengan tempo tenang, lambat, dan tidak suka tergesa-gesa.', mid: 'Memiliki ritme kerja yang stabil dan menyesuaikan situasi.', high: 'Bekerja serba cepat, tangkas, dinamis, dan aktif.' },
+      { code: 'V', category: 'Role', aspect: 'Aktivitas Kerja', name: 'Semangat Kerja (Vigorous Type)', low: 'Cenderung pasif, mudah lelah, lebih menyukai pekerjaan ringan atau di belakang meja.', mid: 'Memiliki energi kerja yang cukup untuk aktivitas sehari-hari.', high: 'Penuh energi, aktif secara fisik, bersemangat, dan antusias.' },
+
+      { code: 'X', category: 'Need', aspect: 'Relasi Sosial', name: 'Kebutuhan Diperhatikan (Need to be Noticed)', low: 'Pemalu, rendah hati, dan tidak suka menjadi pusat perhatian.', mid: 'Menyukai pengakuan wajar atas hasil kerja tanpa mencari sorotan berlebih.', high: 'Ingin dikenal, menonjol, dan mendapat perhatian serta pengakuan sosial.' },
+      { code: 'S', category: 'Role', aspect: 'Relasi Sosial', name: 'Perluasan Sosial (Social Extension)', low: 'Selektif dalam bergaul, lebih nyaman bekerja sendiri atau dengan lingkup kecil.', mid: 'Mampu bergaul baik dengan rekan kerja sesuai kebutuhan profesional.', high: 'Sangat supel, ramah, dan mudah membangun relasi luas dengan banyak orang.' },
+      { code: 'B', category: 'Need', aspect: 'Relasi Sosial', name: 'Kebutuhan Diterima Kelompok (Need to Belong)', low: 'Mandiri, individualis, tidak bergantung pada penerimaan kelompok.', mid: 'Dapat bekerja sama dalam kelompok maupun secara mandiri.', high: 'Senang menjadi bagian dari kelompok, loyal, dan mengutamakan kebersamaan tim.' },
+      { code: 'O', category: 'Need', aspect: 'Relasi Sosial', name: 'Kebutuhan Kedekatan & Afeksi (Need for Closeness)', low: 'Menjaga jarak emosional, objektif, dan tidak mudah terikat secara personal.', mid: 'Hangat secara wajar dengan menjaga batas profesionalisme.', high: 'Sangat hangat, menghargai kedekatan emosional dan persahabatan yang intim.' },
+
+      { code: 'R', category: 'Role', aspect: 'Gaya Kerja', name: 'Tipe Teoritis (Theoretical Type)', low: 'Praktis, berorientasi tindakan langsung daripada konsep atau teori panjang.', mid: 'Seimbang antara perencanaan konseptual dan eksekusi praktis.', high: 'Analitis, suka berpikir mendalam, berencana jauh ke depan, dan berbasis teori.' },
+      { code: 'D', category: 'Role', aspect: 'Gaya Kerja', name: 'Minat Bekerja dengan Detail (Working with Details)', low: 'Lebih menyukai gambaran besar, kurang sabar menangani detail teknis yang kecil.', mid: 'Cukup teliti pada hal penting tanpa terjebak detail berlebihan.', high: 'Sangat teliti, cermat, dan menyukai pekerjaan yang menuntut ketepatan detail.' },
+      { code: 'C', category: 'Role', aspect: 'Gaya Kerja', name: 'Tipe Teratur (Organized Type)', low: 'Fleksibel, kurang terstruktur, tidak terlalu kaku pada kerapian atau sistem.', mid: 'Cukup rapi dan terorganisir dalam menjalankan tugas.', high: 'Sangat rapi, teratur, sistematis, dan meletakkan segala sesuatu pada tempatnya.' },
+
+      { code: 'Z', category: 'Need', aspect: 'Temperamen', name: 'Kebutuhan akan Perubahan (Need for Change)', low: 'Menyukai rutinitas yang stabil, konsisten, dan cara kerja yang sudah mapan.', mid: 'Terbuka pada perubahan bila diperlukan, namun tetap nyaman dengan rutinitas.', high: 'Menyukai hal baru, variasi, eksperimen, dan mudah bosan dengan rutinitas.' },
+      { code: 'E', category: 'Role', aspect: 'Temperamen', name: 'Pengendalian Emosi (Emotional Restraint)', low: 'Ekspresif, mudah menunjukkan emosi, atau cepat merasa gusar.', mid: 'Memiliki pengendalian emosi yang cukup stabil dalam tekanan wajar.', high: 'Sangat tenang, sabar, mampu menahan emosi, dan tidak mudah marah atau sedih.' },
+      { code: 'K', category: 'Need', aspect: 'Temperamen', name: 'Kebutuhan Agresivitas (Need to be Forceful)', low: 'Mengalah, menghindari konflik terbuka, cenderung pasif dalam perdebatan.', mid: 'Asertif secara wajar dalam menyampaikan pendapat.', high: 'Tegas, berani berdebat, dan mempertahankan pendirian secara kuat.' },
+
+      { code: 'F', category: 'Need', aspect: 'Kepatuhan', name: 'Kebutuhan Mendukung Otoritas (Support Authority)', low: 'Kritis terhadap atasan, cenderung independen dan tidak terlalu mengejar pujian pimpinan.', mid: 'Menghormati atasan secara profesional dan kooperatif.', high: 'Sangat loyal, berusaha menyenangkan atasan, dan mendukung penuh pimpinan.' },
+      { code: 'W', category: 'Need', aspect: 'Kepatuhan', name: 'Kebutuhan Aturan & Pengawasan (Rules & Supervision)', low: 'Otonom, menyukai kebebasan berinovasi tanpa banyak aturan atau petunjuk kaku.', mid: 'Mengikuti aturan yang ada sambil tetap fleksibel.', high: 'Patuh pada aturan, menyukai petunjuk kerja yang jelas, terinci, dan terarah.' }
+    ];
+
+    // =========================================================================
+    // 3. ALGORITMA SKORING MATRIKS 100% PRESISI
+    // =========================================================================
+    function getTargetDimension(questionNo, choice) {
+      const c = Math.floor((questionNo - 1) / 10);
+      const r = (questionNo - 1) % 10;
+      if (choice === 'A') {
+        if (c >= r) return { code: TOP_DIMS[r], category: 'Role' };
+        return { code: BOTTOM_DIMS[r], category: 'Need' };
+      } else {
+        if (c >= r) return { code: TOP_DIMS[9 - (c - r)], category: 'Role' };
+        return { code: BOTTOM_DIMS[(r - c) - 1], category: 'Need' };
+      }
+    }
+
+    function computeScores(answers) {
+      const scores = {};
+      [...TOP_DIMS, ...BOTTOM_DIMS].forEach(k => { scores[k] = 0; });
+      for (let i = 1; i <= 90; i++) {
+        const ch = answers[i];
+        if (ch === 'A' || ch === 'B') {
+          const target = getTargetDimension(i, ch);
+          scores[target.code] += 1;
+        }
+      }
+      const totalRoles = TOP_DIMS.reduce((acc, k) => acc + scores[k], 0);
+      const totalNeeds = BOTTOM_DIMS.reduce((acc, k) => acc + scores[k], 0);
+      return { scores, totalRoles, totalNeeds };
+    }
+
+    function getLevelInfo(score) {
+      if (score <= 3) return { label: 'Rendah', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200', key: 'low' };
+      if (score <= 5) return { label: 'Sedang', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200', key: 'mid' };
+      return { label: 'Tinggi', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', key: 'high' };
+    }
+
+    // =========================================================================
+    // 4. STORAGE ENGINE (LOCALSTORAGE + IN-MEMORY FALLBACK)
+    // =========================================================================
+    const STORAGE_KEYS = {
+      SUBMISSIONS: 'papi_kostick_submissions_v1',
+      DRAFTS: 'papi_kostick_drafts_v1',
+      GSHEET_URL: 'papi_kostick_gsheet_url_v1'
+    };
+
+    const memoryFallback = {};
+
+    function safeRead(key, defaultVal) {
+      try {
+        const raw = window.localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : defaultVal;
+      } catch (e) {
+        return memoryFallback[key] !== undefined ? memoryFallback[key] : defaultVal;
+      }
+    }
+
+    function safeWrite(key, value) {
+      memoryFallback[key] = value;
+      try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // =========================================================================
+    // 5. APP STATE
+    // =========================================================================
+    const ADMIN_EMAIL = 'lovaedy950@gmail.com';
+    const ADMIN_PASS = 'rsdk123';
+
+    let appState = {
+      role: null, // 'participant' | 'admin'
+      participant: null, // { id, nama, email, pendidikan, tanggal }
+      currentQuestion: 1,
+      answers: {}, // { 1: 'A', ... }
+      isTransitioning: false,
+      transitionTimer: null,
+      activeResultRecord: null,
+      radarChartInstance: null
+    };
+
+    // =========================================================================
+    // 6. UI HELPERS (TOAST & MODAL)
+    // =========================================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        info: 'bg-slate-900 text-white',
+        success: 'bg-emerald-600 text-white',
+        error: 'bg-rose-600 text-white',
+        warning: 'bg-amber-600 text-white'
+      };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-xs sm:text-sm font-medium transition-all ${colors[type] || colors.info}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 250);
+      }, 3200);
+    }
+
+    function openModal({ title, htmlBody, buttons }) {
+      const modal = document.getElementById('app-modal');
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-body').innerHTML = htmlBody;
+      const actions = document.getElementById('modal-actions');
+      actions.innerHTML = '';
+      buttons.forEach(btn => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = btn.label;
+        b.className = btn.className || 'px-4 py-2 rounded-xl text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50';
+        b.addEventListener('click', () => {
+          closeModal();
+          if (btn.onClick) btn.onClick();
+        });
+        actions.appendChild(b);
+      });
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('app-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function showView(viewId) {
+      ['view-auth', 'view-test', 'view-result', 'view-admin'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== viewId);
+      });
+      const isLoggedIn = viewId !== 'view-auth';
+      document.getElementById('btn-logout').classList.toggle('hidden', !isLoggedIn);
+      document.getElementById('nav-badge').classList.toggle('hidden', !isLoggedIn);
+    }
+
+    // =========================================================================
+    // 7. AUTHENTICATION & TABS
+    // =========================================================================
+    const tabPeserta = document.getElementById('tab-peserta');
+    const tabAdmin = document.getElementById('tab-admin');
+    const formPeserta = document.getElementById('form-peserta');
+    const formAdmin = document.getElementById('form-admin');
+
+    tabPeserta.addEventListener('click', () => {
+      tabPeserta.className = 'py-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 bg-white transition';
+      tabAdmin.className = 'py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition';
+      formPeserta.classList.remove('hidden');
+      formAdmin.classList.add('hidden');
+    });
+
+    tabAdmin.addEventListener('click', () => {
+      tabAdmin.className = 'py-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 bg-white transition';
+      tabPeserta.className = 'py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition';
+      formAdmin.classList.remove('hidden');
+      formPeserta.classList.add('hidden');
+    });
+
+    // Set default date to today
+    document.getElementById('p-tanggal').value = new Date().toISOString().split('T')[0];
+
+    formPeserta.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const nama = document.getElementById('p-nama').value.trim();
+      const email = document.getElementById('p-email').value.trim().toLowerCase();
+      const pendidikan = document.getElementById('p-pendidikan').value;
+      const tanggal = document.getElementById('p-tanggal').value;
+
+      if (!nama || !email || !pendidikan || !tanggal) {
+        showToast('Harap lengkapi seluruh data peserta.', 'warning');
+        return;
+      }
+
+      const participantId = `${email}__${tanggal}`;
+      appState.role = 'participant';
+      appState.participant = { id: participantId, nama, email, pendidikan, tanggal };
+      document.getElementById('nav-badge').textContent = `Peserta: ${nama}`;
+
+      // Check existing completed submission
+      const submissions = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+      const existing = submissions.find(s => s.participant.id === participantId);
+      if (existing) {
+        openModal({
+          title: 'Hasil Tes Ditemukan',
+          htmlBody: `<p>Peserta <strong>${nama}</strong> (${email}) sudah menyelesaikan tes pada tanggal <strong>${tanggal}</strong>. Anda dapat melihat hasil sebelumnya atau mengerjakan tes baru.</p>`,
+          buttons: [
+            {
+              label: 'Kerjakan Ulang',
+              className: 'px-4 py-2 rounded-xl text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50',
+              onClick: () => startFreshTest()
+            },
+            {
+              label: 'Lihat Hasil Saya',
+              className: 'px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700',
+              onClick: () => renderResultView(existing, false)
+            }
+          ]
+        });
+        return;
+      }
+
+      // Check draft
+      const drafts = safeRead(STORAGE_KEYS.DRAFTS, {});
+      if (drafts[participantId] && Object.keys(drafts[participantId].answers || {}).length > 0) {
+        appState.answers = { ...drafts[participantId].answers };
+        const answeredCount = Object.keys(appState.answers).length;
+        showToast(`Melanjutkan progres tersimpan (${answeredCount}/90 soal).`, 'info');
+      } else {
+        appState.answers = {};
+        saveDraftSync();
+      }
+
+      appState.currentQuestion = findFirstUnanswered() || 1;
+      startTestView();
+    });
+
+    formAdmin.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('a-email').value.trim().toLowerCase();
+      const pass = document.getElementById('a-password').value;
+
+      if (email === ADMIN_EMAIL && pass === ADMIN_PASS) {
+        appState.role = 'admin';
+        appState.participant = null;
+        document.getElementById('nav-badge').textContent = `Admin: ${ADMIN_EMAIL}`;
+        showToast('Berhasil masuk sebagai Admin.', 'success');
+        renderAdminDashboard();
+        showView('view-admin');
+      } else {
+        showToast('Email atau password Admin salah.', 'error');
+      }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      if (appState.transitionTimer) clearTimeout(appState.transitionTimer);
+      appState.role = null;
+      appState.participant = null;
+      appState.answers = {};
+      appState.activeResultRecord = null;
+      showView('view-auth');
+      showToast('Anda telah keluar dari sesi.', 'info');
+    });
+
+    // =========================================================================
+    // 8. TEST RUNNER LOGIC (SYNCHRONOUS SAVE + ANTI-RACE-CONDITION)
+    // =========================================================================
+    function startFreshTest() {
+      appState.answers = {};
+      appState.currentQuestion = 1;
+      saveDraftSync();
+      startTestView();
+    }
+
+    function saveDraftSync() {
+      if (!appState.participant) return;
+      const drafts = safeRead(STORAGE_KEYS.DRAFTS, {});
+      drafts[appState.participant.id] = {
+        participant: appState.participant,
+        answers: appState.answers,
+        updatedAt: new Date().toISOString()
+      };
+      safeWrite(STORAGE_KEYS.DRAFTS, drafts);
+    }
+
+    function findFirstUnanswered() {
+      for (let i = 1; i <= 90; i++) {
+        if (!appState.answers[i]) return i;
+      }
+      return null;
+    }
+
+    function startTestView() {
+      document.getElementById('test-participant-label').textContent =
+        `${appState.participant.nama} (${appState.participant.pendidikan}) — ${appState.participant.tanggal}`;
+      showView('view-test');
+      renderQuestion();
+      renderQuestionGrid();
+      updateProgress();
+    }
+
+    function renderQuestion() {
+      const qNo = appState.currentQuestion;
+      const q = QUESTIONS[qNo - 1];
+      const chosen = appState.answers[qNo];
+
+      document.getElementById('q-number-badge').textContent = `Soal ${qNo} dari 90`;
+      document.getElementById('text-choice-a').textContent = q.a;
+      document.getElementById('text-choice-b').textContent = q.b;
+
+      const btnA = document.getElementById('btn-choice-a');
+      const btnB = document.getElementById('btn-choice-b');
+      const chkA = document.getElementById('check-choice-a');
+      const chkB = document.getElementById('check-choice-b');
+      const savedBadge = document.getElementById('q-saved-indicator');
+
+      btnA.className = chosen === 'A'
+        ? 'w-full text-left p-4 sm:p-5 rounded-xl border-2 border-indigo-600 bg-indigo-50/70 transition flex items-start gap-3.5 shadow-sm'
+        : 'w-full text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition flex items-start gap-3.5';
+
+      btnB.className = chosen === 'B'
+        ? 'w-full text-left p-4 sm:p-5 rounded-xl border-2 border-indigo-600 bg-indigo-50/70 transition flex items-start gap-3.5 shadow-sm'
+        : 'w-full text-left p-4 sm:p-5 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition flex items-start gap-3.5';
+
+      chkA.classList.toggle('hidden', chosen !== 'A');
+      chkB.classList.toggle('hidden', chosen !== 'B');
+
+      if (chosen) {
+        savedBadge.classList.remove('hidden');
+        savedBadge.classList.add('inline-flex');
+      } else {
+        savedBadge.classList.add('hidden');
+        savedBadge.classList.remove('inline-flex');
+      }
+
+      document.getElementById('btn-prev-q').disabled = qNo <= 1;
+      document.getElementById('btn-next-q').disabled = qNo >= 90;
+    }
+
+    function renderQuestionGrid() {
+      const grid = document.getElementById('question-grid');
+      grid.innerHTML = '';
+      for (let i = 1; i <= 90; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = i;
+        const isCurrent = i === appState.currentQuestion;
+        const isAnswered = Boolean(appState.answers[i]);
+
+        if (isCurrent) {
+          btn.className = 'h-8 rounded-lg text-xs font-bold bg-indigo-600 text-white ring-2 ring-indigo-300 transition';
+        } else if (isAnswered) {
+          btn.className = 'h-8 rounded-lg text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition';
+        } else {
+          btn.className = 'h-8 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+        }
+
+        btn.addEventListener('click', () => {
+          if (appState.transitionTimer) {
+            clearTimeout(appState.transitionTimer);
+            appState.transitionTimer = null;
+          }
+          appState.isTransitioning = false;
+          appState.currentQuestion = i;
+          renderQuestion();
+          renderQuestionGrid();
+        });
+        grid.appendChild(btn);
+      }
+    }
+
+    function updateProgress() {
+      const count = Object.keys(appState.answers).length;
+      const pct = Math.round((count / 90) * 100);
+      document.getElementById('test-progress-text').textContent = `${count} / 90 terjawab (${pct}%)`;
+      document.getElementById('test-progress-bar').style.width = `${pct}%`;
+      document.getElementById('btn-submit-test').disabled = count < 90;
+    }
+
+    function handleSelectChoice(choice) {
+      // Guard against rapid double-click during transition
+      if (appState.isTransitioning) return;
+
+      const qNo = appState.currentQuestion;
+      // 1. Synchronous & atomic state + storage commit BEFORE any navigation
+      appState.answers = { ...appState.answers, [qNo]: choice };
+      saveDraftSync();
+
+      // 2. Immediate visual confirmation
+      renderQuestion();
+      renderQuestionGrid();
+      updateProgress();
+
+      // 3. Optional safe auto-next with 350ms lock
+      const autoNext = document.getElementById('toggle-autonext').checked;
+      if (autoNext && qNo < 90) {
+        appState.isTransitioning = true;
+        document.getElementById('btn-choice-a').disabled = true;
+        document.getElementById('btn-choice-b').disabled = true;
+
+        appState.transitionTimer = setTimeout(() => {
+          appState.isTransitioning = false;
+          document.getElementById('btn-choice-a').disabled = false;
+          document.getElementById('btn-choice-b').disabled = false;
+          appState.currentQuestion = qNo + 1;
+          renderQuestion();
+          renderQuestionGrid();
+        }, 350);
+      }
+    }
+
+    document.getElementById('btn-choice-a').addEventListener('click', () => handleSelectChoice('A'));
+    document.getElementById('btn-choice-b').addEventListener('click', () => handleSelectChoice('B'));
+
+    document.getElementById('btn-prev-q').addEventListener('click', () => {
+      if (appState.transitionTimer) clearTimeout(appState.transitionTimer);
+      appState.isTransitioning = false;
+      document.getElementById('btn-choice-a').disabled = false;
+      document.getElementById('btn-choice-b').disabled = false;
+      if (appState.currentQuestion > 1) {
+        appState.currentQuestion -= 1;
+        renderQuestion();
+        renderQuestionGrid();
+      }
+    });
+
+    document.getElementById('btn-next-q').addEventListener('click', () => {
+      if (appState.transitionTimer) clearTimeout(appState.transitionTimer);
+      appState.isTransitioning = false;
+      document.getElementById('btn-choice-a').disabled = false;
+      document.getElementById('btn-choice-b').disabled = false;
+      if (appState.currentQuestion < 90) {
+        appState.currentQuestion += 1;
+        renderQuestion();
+        renderQuestionGrid();
+      }
+    });
+
+    document.getElementById('btn-jump-unanswered').addEventListener('click', () => {
+      const nextEmpty = findFirstUnanswered();
+      if (nextEmpty) {
+        appState.currentQuestion = nextEmpty;
+        renderQuestion();
+        renderQuestionGrid();
+      } else {
+        showToast('Seluruh 90 soal sudah terjawab!', 'success');
+      }
+    });
+
+    document.getElementById('btn-demo-fill').addEventListener('click', () => {
+      const filled = {};
+      for (let i = 1; i <= 90; i++) {
+        filled[i] = Math.random() < 0.5 ? 'A' : 'B';
+      }
+      appState.answers = filled;
+      saveDraftSync();
+      renderQuestion();
+      renderQuestionGrid();
+      updateProgress();
+      showToast('90 soal diisi acak untuk uji coba.', 'info');
+    });
+
+    document.getElementById('btn-submit-test').addEventListener('click', async () => {
+      const firstEmpty = findFirstUnanswered();
+      if (firstEmpty) {
+        appState.currentQuestion = firstEmpty;
+        renderQuestion();
+        renderQuestionGrid();
+        showToast(`Masih ada soal yang belum dijawab (No. ${firstEmpty}).`, 'warning');
+        return;
+      }
+
+      const { scores, totalRoles, totalNeeds } = computeScores(appState.answers);
+      const record = {
+        submissionId: `SUB-${Date.now()}`,
+        participant: { ...appState.participant },
+        answers: { ...appState.answers },
+        scores,
+        totalRoles,
+        totalNeeds,
+        completedAt: new Date().toISOString()
+      };
+
+      // Save to submissions database
+      const submissions = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+      const filtered = submissions.filter(s => s.participant.id !== record.participant.id);
+      filtered.unshift(record);
+      safeWrite(STORAGE_KEYS.SUBMISSIONS, filtered);
+
+      // Remove draft
+      const drafts = safeRead(STORAGE_KEYS.DRAFTS, {});
+      delete drafts[record.participant.id];
+      safeWrite(STORAGE_KEYS.DRAFTS, drafts);
+
+      // Optional Google Sheets Webhook sync (matches Database PAPI Kostick columns)
+      const gsheetUrl = safeRead(STORAGE_KEYS.GSHEET_URL, '');
+      if (gsheetUrl) {
+        try {
+          const detailRows = QUESTIONS.map(item => {
+            const ch = record.answers[item.no];
+            const target = getTargetDimension(item.no, ch);
+            return { no: item.no, a: item.a, b: item.b, choice: ch, dimCode: target.code, category: target.category };
+          });
+          await fetch(gsheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...record, detailRows })
+          });
+          showToast('Hasil tersimpan di sistem & dikirim ke Google Sheets.', 'success');
+        } catch (err) {
+          showToast('Hasil tersimpan di sistem lokal (gagal sinkron ke Google Sheets).', 'warning');
+        }
+      } else {
+        showToast('Seluruh jawaban & hasil berhasil disimpan!', 'success');
+      }
+
+      renderResultView(record, false);
+    });
+
+    // =========================================================================
+    // 9. RESULT VIEW & RADAR CHART
+    // =========================================================================
+    function renderResultView(record, fromAdmin) {
+      appState.activeResultRecord = record;
+      showView('view-result');
+
+      document.getElementById('btn-back-admin').classList.toggle('hidden', !fromAdmin);
+      document.getElementById('btn-retake-test').classList.toggle('hidden', fromAdmin);
+
+      document.getElementById('res-name').textContent = record.participant.nama;
+      document.getElementById('res-meta').textContent =
+        `${record.participant.email} • Pendidikan: ${record.participant.pendidikan} • Tanggal Tes: ${record.participant.tanggal} • Selesai: ${new Date(record.completedAt).toLocaleString('id-ID')}`;
+      document.getElementById('res-validation-badge').textContent =
+        `Roles: ${record.totalRoles}/45 | Needs: ${record.totalNeeds}/45`;
+
+      // Radar Chart
+      const labels = DIMENSIONS_META.map(d => `${d.code} (${d.category})`);
+      const dataValues = DIMENSIONS_META.map(d => record.scores[d.code]);
+      const ctx = document.getElementById('papi-radar-chart').getContext('2d');
+      if (appState.radarChartInstance) {
+        appState.radarChartInstance.destroy();
+      }
+      appState.radarChartInstance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Skor Dimensi (0–9)',
+            data: dataValues,
+            backgroundColor: 'rgba(79, 70, 229, 0.18)',
+            borderColor: 'rgba(79, 70, 229, 1)',
+            borderWidth: 2,
+            pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0,
+              max: 9,
+              ticks: { stepSize: 1, backdropColor: 'transparent' }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+
+      // Top Highlights
+      const sorted = [...DIMENSIONS_META].sort((a, b) => record.scores[b.code] - record.scores[a.code]);
+      const top3 = sorted.slice(0, 3);
+      const low2 = sorted.slice(-2).reverse();
+      const highlightsEl = document.getElementById('res-highlights');
+      highlightsEl.innerHTML = `
+        <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+          <div class="text-xs font-bold text-emerald-800 uppercase mb-1.5">3 Dimensi Paling Menonjol</div>
+          ${top3.map(d => `<div class="text-xs text-emerald-900 mb-1"><strong>${d.code} (${record.scores[d.code]}/9)</strong> — ${d.name}</div>`).join('')}
+        </div>
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-100">
+          <div class="text-xs font-bold text-amber-800 uppercase mb-1.5">2 Dimensi Terendah (Area Perhatian)</div>
+          ${low2.map(d => `<div class="text-xs text-amber-900 mb-1"><strong>${d.code} (${record.scores[d.code]}/9)</strong> — ${d.name}</div>`).join('')}
+        </div>
+      `;
+
+      // 20 Dimensions Table
+      const tbody = document.getElementById('res-dimensions-tbody');
+      tbody.innerHTML = DIMENSIONS_META.map(d => {
+        const sc = record.scores[d.code];
+        const lvl = getLevelInfo(sc);
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-3 text-xs font-semibold text-slate-500">${d.aspect}</td>
+            <td class="px-4 py-3 font-bold text-indigo-700">${d.code}</td>
+            <td class="px-4 py-3 font-medium text-slate-800">${d.name}</td>
+            <td class="px-4 py-3 text-xs text-slate-600">${d.category}</td>
+            <td class="px-4 py-3 text-center font-bold text-slate-900">${sc}</td>
+            <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-semibold border ${lvl.badgeClass}">${lvl.label}</span></td>
+            <td class="px-4 py-3 text-xs text-slate-600 leading-relaxed">${d[lvl.key]}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Detailed 90 Log
+      renderResultLogTable(record, '');
+    }
+
+    function renderResultLogTable(record, filterText) {
+      const q = filterText.trim().toLowerCase();
+      const tbody = document.getElementById('res-log-tbody');
+      const rows = QUESTIONS.filter(item => {
+        if (!q) return true;
+        const ch = record.answers[item.no];
+        const target = getTargetDimension(item.no, ch);
+        return (
+          String(item.no).includes(q) ||
+          item.a.toLowerCase().includes(q) ||
+          item.b.toLowerCase().includes(q) ||
+          target.code.toLowerCase().includes(q)
+        );
+      });
+
+      tbody.innerHTML = rows.map(item => {
+        const ch = record.answers[item.no];
+        const target = getTargetDimension(item.no, ch);
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="px-3 py-2 text-center font-semibold text-slate-700">${item.no}</td>
+            <td class="px-3 py-2 ${ch === 'A' ? 'bg-indigo-50/70 font-semibold text-indigo-950' : 'text-slate-600'}">${item.a}</td>
+            <td class="px-3 py-2 ${ch === 'B' ? 'bg-indigo-50/70 font-semibold text-indigo-950' : 'text-slate-600'}">${item.b}</td>
+            <td class="px-3 py-2 text-center font-bold text-indigo-700">${ch}</td>
+            <td class="px-3 py-2 text-center"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold text-slate-800">${target.code}</span> <span class="text-[11px] text-slate-500">(${target.category})</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('res-search-log').addEventListener('input', (e) => {
+      if (appState.activeResultRecord) {
+        renderResultLogTable(appState.activeResultRecord, e.target.value);
+      }
+    });
+
+    document.getElementById('btn-back-admin').addEventListener('click', () => {
+      renderAdminDashboard();
+      showView('view-admin');
+    });
+
+    document.getElementById('btn-retake-test').addEventListener('click', () => {
+      startFreshTest();
+    });
+
+    document.getElementById('btn-print-result').addEventListener('click', () => {
+      window.print();
+    });
+
+    // =========================================================================
+    // 10. EXCEL (.XLSX) EXPORT ENGINE (SHEETJS)
+    // =========================================================================
+    function autoFitColumns(ws, rows) {
+      if (!rows || !rows.length) return;
+      const colWidths = Object.keys(rows[0]).map(key => {
+        const maxLen = Math.max(
+          key.length,
+          ...rows.map(r => String(r[key] !== undefined && r[key] !== null ? r[key] : '').length)
+        );
+        return { wch: Math.min(maxLen + 3, 60) };
+      });
+      ws['!cols'] = colWidths;
+    }
+
+    function exportSingleExcel(record) {
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat. Periksa koneksi internet.', 'error');
+        return;
+      }
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Profil & Ringkasan
+      const sheet1Rows = [
+        { Keterangan: 'Nama Lengkap', Nilai: record.participant.nama },
+        { Keterangan: 'Email / ID Peserta', Nilai: record.participant.email },
+        { Keterangan: 'Pendidikan Terakhir', Nilai: record.participant.pendidikan },
+        { Keterangan: 'Tanggal Tes', Nilai: record.participant.tanggal },
+        { Keterangan: 'Waktu Selesai', Nilai: new Date(record.completedAt).toLocaleString('id-ID') },
+        { Keterangan: 'Validasi Total Roles', Nilai: `${record.totalRoles} / 45` },
+        { Keterangan: 'Validasi Total Needs', Nilai: `${record.totalNeeds} / 45` }
+      ];
+      const ws1 = XLSX.utils.json_to_sheet(sheet1Rows);
+      autoFitColumns(ws1, sheet1Rows);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Profil & Ringkasan');
+
+      // Sheet 2: Skor 20 Dimensi
+      const sheet2Rows = DIMENSIONS_META.map(d => {
+        const sc = record.scores[d.code];
+        const lvl = getLevelInfo(sc);
+        return {
+          Aspek_Kerja: d.aspect,
+          Kode: d.code,
+          Nama_Dimensi: d.name,
+          Kategori: d.category,
+          Skor: sc,
+          Level: lvl.label,
+          Interpretasi: d[lvl.key]
+        };
+      });
+      const ws2 = XLSX.utils.json_to_sheet(sheet2Rows);
+      autoFitColumns(ws2, sheet2Rows);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Skor 20 Dimensi');
+
+      // Sheet 3: Detail Jawaban 1-90
+      const sheet3Rows = QUESTIONS.map(item => {
+        const ch = record.answers[item.no];
+        const target = getTargetDimension(item.no, ch);
+        return {
+          No_Soal: item.no,
+          Pernyataan_A: item.a,
+          Pernyataan_B: item.b,
+          Pilihan_Peserta: ch,
+          Teks_Pilihan_Terpilih: ch === 'A' ? item.a : item.b,
+          Dimensi_Terhitung: target.code,
+          Kategori_Dimensi: target.category
+        };
+      });
+      const ws3 = XLSX.utils.json_to_sheet(sheet3Rows);
+      autoFitColumns(ws3, sheet3Rows);
+      XLSX.utils.book_append_sheet(wb, ws3, 'Detail Jawaban 1-90');
+
+      const safeName = record.participant.nama.replace(/[^a-zA-Z0-9_-]/g, '_');
+      XLSX.writeFile(wb, `Hasil_PAPI_Kostick_${safeName}_${record.participant.tanggal}.xlsx`);
+      showToast('File Excel detail berhasil diunduh.', 'success');
+    }
+
+    document.getElementById('btn-export-excel-single').addEventListener('click', () => {
+      if (appState.activeResultRecord) exportSingleExcel(appState.activeResultRecord);
+    });
+
+    function exportAllDatabaseExcel() {
+      const submissions = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+      if (!submissions.length) {
+        showToast('Belum ada data peserta untuk diekspor.', 'warning');
+        return;
+      }
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat.', 'error');
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Database Rekap Peserta
+      const rekapRows = submissions.map((s, idx) => {
+        const row = {
+          No: idx + 1,
+          Nama_Peserta: s.participant.nama,
+          Email_ID: s.participant.email,
+          Pendidikan: s.participant.pendidikan,
+          Tanggal_Tes: s.participant.tanggal,
+          Waktu_Selesai: new Date(s.completedAt).toLocaleString('id-ID'),
+          Total_Roles: s.totalRoles,
+          Total_Needs: s.totalNeeds
+        };
+        DIMENSIONS_META.forEach(d => {
+          row[d.code] = s.scores[d.code];
+        });
+        return row;
+      });
+      const ws1 = XLSX.utils.json_to_sheet(rekapRows);
+      autoFitColumns(ws1, rekapRows);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Database Rekap Peserta');
+
+      // Sheet 2: Matriks Jawaban 1-90
+      const matrixRows = submissions.map((s, idx) => {
+        const row = {
+          No: idx + 1,
+          Nama_Peserta: s.participant.nama,
+          Tanggal_Tes: s.participant.tanggal
+        };
+        for (let i = 1; i <= 90; i++) {
+          const ch = s.answers[i];
+          const dim = getTargetDimension(i, ch).code;
+          row[`Q${i}`] = `${ch} (${dim})`;
+        }
+        return row;
+      });
+      const ws2 = XLSX.utils.json_to_sheet(matrixRows);
+      autoFitColumns(ws2, matrixRows);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Matriks Jawaban 1-90');
+
+      // Sheet 3: Kamus Dimensi
+      const refRows = DIMENSIONS_META.map(d => ({
+        Kode: d.code,
+        Kategori: d.category,
+        Aspek: d.aspect,
+        Nama_Dimensi: d.name,
+        Skor_Rendah_0_3: d.low,
+        Skor_Sedang_4_5: d.mid,
+        Skor_Tinggi_6_9: d.high
+      }));
+      const ws3 = XLSX.utils.json_to_sheet(refRows);
+      autoFitColumns(ws3, refRows);
+      XLSX.utils.book_append_sheet(wb, ws3, 'Kamus 20 Dimensi');
+
+      const today = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Database_PAPI_Kostick_All_${today}.xlsx`);
+      showToast('Database Excel seluruh peserta berhasil diunduh.', 'success');
+    }
+
+    // =========================================================================
+    // 11. ADMIN DASHBOARD LOGIC
+    // =========================================================================
+    function renderAdminDashboard() {
+      const submissions = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+      const drafts = safeRead(STORAGE_KEYS.DRAFTS, {});
+      const gsheetUrl = safeRead(STORAGE_KEYS.GSHEET_URL, '');
+
+      document.getElementById('kpi-total-submissions').textContent = submissions.length;
+      document.getElementById('kpi-total-drafts').textContent = Object.keys(drafts).length;
+      document.getElementById('kpi-gsheet-status').textContent = gsheetUrl
+        ? 'Terhubung ke Google Sheets'
+        : 'Penyimpanan Lokal + Ekspor Excel';
+
+      renderAdminTable(submissions, document.getElementById('admin-search').value);
+    }
+
+    function renderAdminTable(submissions, queryText) {
+      const q = (queryText || '').trim().toLowerCase();
+      const tbody = document.getElementById('admin-tbody');
+      const filtered = submissions.filter(s => {
+        if (!q) return true;
+        return (
+          s.participant.nama.toLowerCase().includes(q) ||
+          s.participant.email.toLowerCase().includes(q) ||
+          s.participant.pendidikan.toLowerCase().includes(q)
+        );
+      });
+
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">Belum ada data hasil tes peserta yang tersimpan.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      filtered.forEach((s, idx) => {
+        const topDims = [...DIMENSIONS_META]
+          .sort((a, b) => s.scores[b.code] - s.scores[a.code])
+          .slice(0, 3)
+          .map(d => `${d.code}:${s.scores[d.code]}`)
+          .join(' • ');
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50';
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-medium text-slate-600">${idx + 1}</td>
+          <td class="px-4 py-3 font-semibold text-slate-900">${s.participant.nama}</td>
+          <td class="px-4 py-3 text-slate-600">${s.participant.email}</td>
+          <td class="px-4 py-3 text-slate-600">${s.participant.pendidikan}</td>
+          <td class="px-4 py-3 text-slate-600">${s.participant.tanggal}</td>
+          <td class="px-4 py-3 text-xs font-bold text-indigo-700">${topDims}</td>
+          <td class="px-4 py-3 text-right space-x-1.5 whitespace-nowrap"></td>
+        `;
+
+        const actionTd = tr.lastElementChild;
+
+        const btnView = document.createElement('button');
+        btnView.type = 'button';
+        btnView.textContent = 'Detail';
+        btnView.className = 'px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold';
+        btnView.addEventListener('click', () => renderResultView(s, true));
+
+        const btnExcel = document.createElement('button');
+        btnExcel.type = 'button';
+        btnExcel.textContent = 'Excel';
+        btnExcel.className = 'px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold';
+        btnExcel.addEventListener('click', () => exportSingleExcel(s));
+
+        const btnDel = document.createElement('button');
+        btnDel.type = 'button';
+        btnDel.textContent = 'Hapus';
+        btnDel.className = 'px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold';
+        btnDel.addEventListener('click', () => {
+          openModal({
+            title: 'Hapus Data Peserta',
+            htmlBody: `<p>Apakah Anda yakin ingin menghapus hasil tes milik <strong>${s.participant.nama}</strong>?</p>`,
+            buttons: [
+              { label: 'Batal' },
+              {
+                label: 'Hapus Permanen',
+                className: 'px-4 py-2 rounded-xl text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700',
+                onClick: () => {
+                  const all = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+                  safeWrite(STORAGE_KEYS.SUBMISSIONS, all.filter(item => item.submissionId !== s.submissionId));
+                  renderAdminDashboard();
+                  showToast('Data peserta berhasil dihapus.', 'info');
+                }
+              }
+            ]
+          });
+        });
+
+        actionTd.append(btnView, btnExcel, btnDel);
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('admin-search').addEventListener('input', () => {
+      const submissions = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+      renderAdminTable(submissions, document.getElementById('admin-search').value);
+    });
+
+    document.getElementById('btn-admin-export-all').addEventListener('click', exportAllDatabaseExcel);
+
+    document.getElementById('btn-admin-export-json').addEventListener('click', () => {
+      const submissions = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+      const blob = new Blob([JSON.stringify(submissions, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Backup_PAPI_Kostick_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup JSON berhasil diunduh.', 'success');
+    });
+
+    document.getElementById('input-import-json').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          if (!Array.isArray(imported)) throw new Error('Format tidak valid');
+          const current = safeRead(STORAGE_KEYS.SUBMISSIONS, []);
+          const mergedMap = new Map();
+          current.forEach(item => mergedMap.set(item.submissionId, item));
+          imported.forEach(item => {
+            if (item.submissionId && item.participant && item.scores) {
+              mergedMap.set(item.submissionId, item);
+            }
+          });
+          safeWrite(STORAGE_KEYS.SUBMISSIONS, Array.from(mergedMap.values()));
+          renderAdminDashboard();
+          showToast(`Berhasil mengimpor ${imported.length} data peserta.`, 'success');
+        } catch (err) {
+          showToast('File JSON tidak valid.', 'error');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    document.getElementById('btn-admin-gsheet-modal').addEventListener('click', () => {
+      const currentUrl = safeRead(STORAGE_KEYS.GSHEET_URL, '');
+      const sheetLink = 'https://docs.google.com/spreadsheets/d/1wvcoUyRpaofmplDNmenOYoGWmSubWtV8wYD7G1WIbMI/edit';
+      openModal({
+        title: 'Integrasi Database Google Sheets',
+        htmlBody: `
+          <div class="space-y-3 text-xs">
+            <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
+              Spreadsheet sudah disiapkan: <a href="${sheetLink}" target="_blank" rel="noopener noreferrer" class="font-bold underline text-emerald-700">Buka Database PAPI Kostick ↗</a>
+            </div>
+            <p>Agar setiap jawaban peserta otomatis masuk ke tab <strong>Hasil</strong> dan <strong>Detail_Jawaban_1_90</strong>, buka spreadsheet di atas → <strong>Ekstensi &gt; Apps Script</strong> → tempel kode di bawah → <strong>Terapkan &gt; Deployment baru &gt; Aplikasi Web (Akses: Siapa saja)</strong>, lalu tempel URL-nya di sini:</p>
+            <input id="gsheet-url-input" type="url" value="${currentUrl}" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs" />
+            <div class="bg-slate-900 text-slate-100 p-3 rounded-lg overflow-x-auto font-mono text-[10px] leading-relaxed max-h-48 overflow-y-auto">
+function doPost(e) {<br/>
+&nbsp;&nbsp;var ss = SpreadsheetApp.getActiveSpreadsheet();<br/>
+&nbsp;&nbsp;var shHasil = ss.getSheetByName('Hasil');<br/>
+&nbsp;&nbsp;var shDetail = ss.getSheetByName('Detail_Jawaban_1_90');<br/>
+&nbsp;&nbsp;var d = JSON.parse(e.postData.contents);<br/>
+&nbsp;&nbsp;var s = d.scores;<br/>
+&nbsp;&nbsp;shHasil.appendRow([d.completedAt, d.submissionId, d.participant.nama, d.participant.email, d.participant.pendidikan, d.participant.tanggal, d.totalRoles, d.totalNeeds, s.G, s.L, s.I, s.T, s.V, s.S, s.R, s.D, s.C, s.E, s.N, s.A, s.P, s.X, s.B, s.O, s.Z, s.K, s.F, s.W, JSON.stringify(d.answers)]);<br/>
+&nbsp;&nbsp;if (d.detailRows && shDetail) {<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;var rows = d.detailRows.map(function(r){ return [d.completedAt, d.submissionId, d.participant.nama, d.participant.tanggal, r.no, r.a, r.b, r.choice, r.dimCode, r.category]; });<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;shDetail.getRange(shDetail.getLastRow()+1, 1, rows.length, 10).setValues(rows);<br/>
+&nbsp;&nbsp;}<br/>
+&nbsp;&nbsp;return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);<br/>
+}
+            </div>
+          </div>
+        `,
+        buttons: [
+          { label: 'Tutup' },
+          {
+            label: 'Simpan URL',
+            className: 'px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700',
+            onClick: () => {
+              const val = document.getElementById('gsheet-url-input').value.trim();
+              safeWrite(STORAGE_KEYS.GSHEET_URL, val);
+              renderAdminDashboard();
+              showToast(val ? 'URL Google Sheets disimpan.' : 'Integrasi Google Sheets dinonaktifkan.', 'success');
+            }
+          }
+        ]
+      });
+    });
+
+    // Init
+    showView('view-auth');
+  </script>
+</body>
+</html>
